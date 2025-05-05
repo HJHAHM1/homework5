@@ -1,0 +1,125 @@
+---
+title: "Homework 5"
+subtitle: "Research Methods, Spring 2025"
+author: Justin Hahm
+format:
+  pdf:
+    output-file: "hahm-j-hwk5-1"
+    output-ext: "pdf"
+    header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
+---
+```{r}
+#| include: false
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, readr, readxl, hrbrthemes, fixest,
+               scales, gganimate, gapminder, gifski, png, tufte, plotly, OECD,
+               ggrepel, survey, foreign, devtools, pdftools, kableExtra, modelsummary,
+               kableExtra)
+```
+
+```{r}
+#| include: false
+#| eval: true
+ 
+load("C:/Users/hjust/OneDrive/Documents/GitHub/homework5/submission1/Hwk5_workspace.Rdata")
+```
+
+
+My answers to the homework questions are described below. Note that I do the analysis for these answers in a separate `R` script. My analysis file is available in the analysis folder. The GitHub repository for this work is available [here](https://github.com/HJHAHM1/homework5.git). Enjoy!
+
+\newpage
+\noindent
+# Summarize the data
+Plot the share of the adult population with direct purchase health insurance over time.
+
+```{r} 
+#| echo: false
+#| label: fig-prop
+#| fig-cap: 
+
+plot.1
+
+```
+Discuss the reduction in direct purchase health insurance in later years. Can you list a couple of policies that might have affected the success of the direct purchase insurance market?
+
+The reduction could be attributed to many policies such as the repeal of the individual mandate penalty in 2017, the reduction in cost-sharing payments, and short-term and association health plans expansion. 
+
+\newpage
+\noindent
+Plot the share of the adult population with Medicaid over time.
+
+```{r} 
+#| echo: false
+#| label: fig-share
+#| fig-cap: 
+
+plot.2
+
+```
+
+\newpage
+\noindent
+Plot the share of uninsured over time, separately by states that expanded Medicaid in 2014 versus those that did not. Drop all states that expanded after 2014.
+
+```{r} 
+#| echo: false
+#| label: fig-unins
+#| fig-cap: 
+
+plot.3
+
+```
+
+# Estimate ATEs
+For the rest of the assignment, we’re going to apply the difference-in-differences estimator to the question of Medicaid expansion and uninsurance.
+
+I am currently working on visualizing this portion of the assignment. 
+
+Calculate the average percent of uninsured individuals in 2012 and 2015, separately for expansion and non-expansion states. Present your results in a basic 2x2 DD table.
+
+```{r} 
+#| echo: false
+#| label: tab-coeftable
+
+modelsummary(list("DD (2014)"=dd.ins.reg),
+             shape=term + statistic ~ model, 
+             gof_map=NA,
+             coef_omit='Intercept',
+             vcov=~State)
+```
+
+Estimate the effect of Medicaid expansion on the uninsurance rate using a standard DD regression estimator, again focusing only on states that expanded in 2014 versus those that never expanded.
+
+I am working on adjusting my regression. 
+
+Include state and year fixed effects in your estimates.
+
+```{r} 
+#| echo: false
+#| label: tab-fix
+
+msummary(list("TWFE"=m.twfe),
+         shape=term + statistic ~ model, 
+         gof_map=NA,
+         coef_omit='Intercept',
+         vcov=~State)
+```
+
+Repeat the analysis in question 7 but include all states (even those that expanded after 2014). Are your results different? If so, why?
+
+My results are different, I am working on visualizing. 
+
+Provide an “event study” graph showing the effects of Medicaid expansion in each year. Use the specification that includes state and year fixed effects, limited to states that expanded in 2014 or never expanded.
+
+Repeat part 9 but again include states that expanded after 2014. Note: this is tricky…you need to put all states onto “event time” to create this graph.
+
+I am working on visualizing both parts. 
+
+
+
+
+
+

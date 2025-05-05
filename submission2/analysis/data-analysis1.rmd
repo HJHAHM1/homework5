@@ -1,0 +1,180 @@
+  ```{r}
+# Preliminaries -----------------------------------------------------------
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, Matching, cobalt, fixest, broom)
+ ```
+
+```{r}
+full.taxburden.data <- readRDS('data/output/TaxBurden_Data.rds')
+```
+
+```{r}
+### Question 1:
+
+tax_data <- full.taxburden.data %>%
+  arrange(state, Year) %>%
+  group_by(state) %>%
+  mutate(tax_change = ifelse(tax_state != lag(tax_state), 1, 0)) %>%
+  ungroup()
+
+# Step 2: Filter the data to focus on years between 1970 and 1985
+tax_data_filtered <- tax_data %>%
+  filter(Year >= 1969 & Year <= 1985)
+
+# Step 3: Calculate the proportion of states with a tax change each year
+proportion_data <- tax_data_filtered %>%
+  group_by(Year) %>%
+  summarise(proportion_changed = mean(tax_change, na.rm = TRUE)) %>%
+  ungroup()
+
+proportion_data <- na.omit(proportion_data)
+
+# Step 4: Plot the results as a bar graph
+fig.prop = ggplot(proportion_data, aes(x = Year, y = proportion_changed)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Year", y = "Proportion of States with Tax Change") +
+  theme_minimal()
+```
+
+```{r}
+### Question 2
+# Calculate average tax and average price across the years
+full.taxburden.avg <- full.taxburden.data %>%
+  group_by(Year) %>%
+  summarise(
+    avg_tax = mean(tax_dollar),
+    avg_price = mean(price_cpi)
+  )
+# Plotting the data
+fig.price = ggplot(full.taxburden.avg, aes(x = Year)) +
+  geom_line(aes(y = avg_tax, color = "Average Tax (2012 dollars)"), size = 1) +
+  geom_line(aes(y = avg_price, color = "Average Price (CPI adjusted)"), size = 1) +
+  labs(x = "Year", 
+       y = "Value in CPI-adjusted Dollars") +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  theme(legend.position = "top")
+```
+
+```{r}
+### Question 3
+# Step 1: Calculate the price increase for each state (price in 2018 minus price in 1970)
+state_price_decrease <- full.taxburden.data %>%
+  group_by(state) %>%
+  summarise(
+    price_1970 = price_cpi[Year == 1970],
+    price_2018 = price_cpi[Year == 2018],
+    price_increase = price_2018 - price_1970
+  ) %>%
+  arrange(desc(price_increase))  # Sort by price increase
+
+# Step 2: Identify the top 5 states with the highest price increases
+top_5_states <- state_price_decrease %>%
+  top_n(5, price_increase) %>%
+  pull(state)
+
+# Step 3: Filter the dataset to include only the top 5 states
+taxburden_top_5_states <- full.taxburden.data %>%
+  filter(state %in% top_5_states)
+
+# Step 4: Plot the average number of packs sold per capita for the top 5 states from 1970 to 2018
+fig.state.top = ggplot(taxburden_top_5_states, aes(x = Year, y = sales_per_capita, color = state)) +
+  geom_line(size = 1) +
+  labs(x = "Year",
+       y = "Packs Sold Per Capita") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+### Question 4
+# Step 1: Calculate the price increase for each state (price in 2018 minus price in 1970)
+state_price_increase <- full.taxburden.data %>%
+  group_by(state) %>%
+  summarise(
+    price_1970 = price_cpi[Year == 1970],
+    price_2018 = price_cpi[Year == 2018],
+    price_increase = price_2018 - price_1970
+  ) %>%
+  arrange(price_increase)
+
+# Identify the 5 states with the smallest price increases
+lowest_5_states <- state_price_increase %>%
+  slice_head(n = 5) %>%
+  pull(state)
+
+# Filter the dataset to include only the lowest 5 states
+taxburden_lowest_5_states <- full.taxburden.data %>%
+  filter(state %in% lowest_5_states)
+
+# Plot the average number of packs sold per capita for the top 5 states from 1970 to 2018
+fig.state.low = ggplot(taxburden_lowest_5_states, aes(x = Year, y = sales_per_capita, color = state)) +
+  geom_line(size = 1) +
+  labs(x = "Year",
+       y = "Packs Sold Per Capita") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+### Question 6 
+# Rearrange dataset to incorporate logarithmic values while also filtering for designated years. 
+cig.data <- full.taxburden.data %>% filter(Year >= 1970 & Year <= 1990) %>% 
+                                mutate(ln_sales=log(sales_per_capita),
+                                ln_price_cpi=log(price_cpi),
+                                ln_price=log(cost_per_pack),
+                                tax_cpi=tax_state*(230/index),
+                                total_tax_cpi=tax_dollar*(230/index),
+                                ln_total_tax=log(total_tax_cpi),                             
+                                ln_state_tax=log(tax_cpi))
+ols <- lm(ln_sales ~ ln_price_cpi, data=cig.data)
+summary(ols)
+```
+
+```{r}
+### Question 7
+ivs <- feols(ln_sales ~ 1 | ln_price_cpi ~ ln_total_tax, 
+             data=cig.data)
+summary(ivs)
+```
+
+```{r}
+### Question 8
+step1 <- lm(ln_price_cpi ~ ln_total_tax, data=cig.data)
+pricehat <- predict(step1)
+summary(step1)
+
+reduced <- lm(ln_sales ~ ln_total_tax, data=cig.data)
+summary(reduced)
+```
+
+```{r}
+### Question 9 
+cig.data.mod <- full.taxburden.data %>% filter(Year >= 1991 & Year <= 2015) %>% 
+                                mutate(ln_sales=log(sales_per_capita),
+                                ln_price_cpi=log(price_cpi),
+                                ln_price=log(cost_per_pack),
+                                tax_cpi=tax_state*(230/index),
+                                total_tax_cpi=tax_dollar*(230/index),
+                                ln_total_tax=log(total_tax_cpi),                             
+                                ln_state_tax=log(tax_cpi))
+ols.2 <- lm(ln_sales ~ ln_price_cpi, data=cig.data.mod)
+ols_table.2 <- tidy(ols.2)
+
+ivs.2 <- feols(ln_sales ~ 1 | ln_price_cpi ~ ln_total_tax, 
+             data=cig.data.mod)
+ivs_table.2 <- tidy(ivs.2)
+
+step1.2 <- lm(ln_price_cpi ~ ln_total_tax, data=cig.data.mod)
+pricehat <- predict(step1.2)
+summary(step1.2)
+
+reduced.2 <- lm(ln_sales ~ ln_total_tax, data=cig.data.mod)
+summary(reduced.2)
+```
+
+```{r}
+save.image("submission2/Hwk3_workspace.Rdata")
+```
